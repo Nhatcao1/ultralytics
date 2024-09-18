@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package federatedlearning;
+
+// The federated learning service definition.
+service FederatedLearning {
+  // Sends model parameters to the server
+  rpc SendModelUpdate(ModelUpdate) returns (Ack);
+
+  // Receives aggregated model parameters from the server
+  rpc GetModelParameters(Request) returns (ModelParameters);
+}
+
+// Model update structure sent by clients
+message ModelUpdate {
+  bytes model_parameters = 1;
+}
+
+// Request for model parameters
+message Request {
+  string client_id = 1;
+}
+
+// Model parameters sent by the server
+message ModelParameters {
+  bytes model_parameters = 1;
+}
+
+// Acknowledgment message
+message Ack {
+  bool success = 1;
+}
