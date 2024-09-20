@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Set variables for certificate details
+COUNTRY="US"
+STATE="State"
+LOCALITY="City"
+ORGANIZATION="MyOrg"
+ORG_UNIT="IT"
+COMMON_NAME_SERVER="server"
+DAYS_VALID=365
+
+# Paths for certificates and keys
+CERT_DIR="./tls_certs"
+CA_KEY="$CERT_DIR/ca.key"
+CA_CERT="$CERT_DIR/ca.crt"
+SERVER_KEY="$CERT_DIR/server.key"
+SERVER_CSR="$CERT_DIR/server.csr"
+SERVER_CERT="$CERT_DIR/server.crt"
+
+# Create directory for certificates and keys
+mkdir -p $CERT_DIR
+
+# Step 1: Generate the Root CA (Certificate Authority)
+echo "Generating Root CA..."
+openssl genpkey -algorithm RSA -out $CA_KEY
+openssl req -x509 -new -nodes -key $CA_KEY -sha256 -days $DAYS_VALID -out $CA_CERT -subj "/C=$COUNTRY/ST=$STATE/L=$LOCALITY/O=$ORGANIZATION/OU=$ORG_UNIT/CN=RootCA"
+
+# Step 2: Generate the Server Private Key and Certificate
+echo "Generating Server Key and CSR..."
+openssl genpkey -algorithm RSA -out $SERVER_KEY
+openssl req -new -key $SERVER_KEY -out $SERVER_CSR -subj "/C=$COUNTRY/ST=$STATE/L=$LOCALITY/O=$ORGANIZATION/OU=$ORG_UNIT/CN=$COMMON_NAME_SERVER"
+echo "Signing Server Certificate with CA..."
+openssl x509 -req -in $SERVER_CSR -CA $CA_CERT -CAkey $CA_KEY -CAcreateserial -out $SERVER_CERT -days $DAYS_VALID -sha256
+
+# Step 3: Verify the Server Certificate
+echo "Verifying the Server Certificate..."
+openssl verify -CAfile $CA_CERT $SERVER_CERT
+
+# Display the results
+echo "====================================="
+echo "Server TLS setup is complete. Files created:"
+echo "Root CA: $CA_CERT"
+echo "Server Key: $SERVER_KEY"
+echo "Server Certificate: $SERVER_CERT"
+echo "====================================="
+
+#scp ./tls_certs/ca.crt root@worker1:/etc/pki/tls/certs/

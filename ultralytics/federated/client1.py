@@ -22,24 +22,29 @@ class YoloClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         # Set received parameters
         self.set_parameters(parameters)
-        
         # Perform training on the specified dataset
         results = self.model.train(data=DATA_PATH, epochs=3, imgsz=IMG_SIZE, device="auto")
-        
         # Return the updated parameters and the number of examples used
         return self.get_parameters(), len(results)
     
     def evaluate(self, parameters, config):
         # Set the model parameters to the latest global model
         self.set_parameters(parameters)
-        
         # Validate the model
         metrics = self.model.val(data=DATA_PATH, imgsz=IMG_SIZE)
-        
-        # Return accuracy and the number of evaluation examples used
+        # Return loss, the number of evaluation examples used, and accuracy
         loss = metrics['loss']  # Assuming 'loss' is part of the returned metrics
         accuracy = metrics['accuracy']  # Assuming 'accuracy' is part of the returned metrics
         return float(loss), len(metrics), {"accuracy": float(accuracy)}
 
-# Start the Flower client
-fl.client.start_numpy_client(server_address="localhost:8080", client=YoloClient())
+# Start the Flower client with gRPC configuration
+fl.client.start_numpy_client(
+    server_address="localhost:8080",
+    client=YoloClient(),
+    grpc_max_message_length=1024**3,
+    grpc_client_credentials={
+        "root_certificates": open("ca.crt", "rb").read(),
+        "private_key": open("client.key", "rb").read(),
+        "certificate_chain": open("client.crt", "rb").read(),
+    }
+)

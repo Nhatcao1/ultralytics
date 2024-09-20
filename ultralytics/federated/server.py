@@ -1,30 +1,31 @@
 import flwr as fl
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 import numpy as np
+from pathlib import Path
 
 # Define a custom Federated Averaging strategy
 class FedAvgStrategy(fl.server.strategy.FedAvg):
     def aggregate_fit(
         self,
         rnd: int,
-        results: List[Tuple[fl.common.ClientProxy, fl.common.FitRes]],
+        results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
         failures: List[BaseException],
-    ) -> Tuple[Optional[fl.common.Weights], Dict[str, fl.common.Scalar]]:
+    ) -> Tuple[Optional[fl.common.Parameters], Dict[str, fl.common.Scalar]]:
         """Aggregate model weights using weighted average."""
         if not results:
             return None, {}
         
-        # Aggregate weights
-        weights = [parameters for client, parameters in results]
-        new_weights = np.mean(weights, axis=0)  # Simple average of the weights
+        # Aggregate parameters
+        parameters = [fit_res.parameters for _, fit_res in results]
+        new_parameters = np.mean(parameters, axis=0)  # Simple average of the parameters
 
-        # Return the new weights and no metrics
-        return new_weights, {}
+        # Return the new parameters and no metrics
+        return new_parameters, {}
 
     def aggregate_evaluate(
         self,
         rnd: int,
-        results: List[Tuple[fl.common.ClientProxy, fl.common.EvaluateRes]],
+        results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.EvaluateRes]],
         failures: List[BaseException],
     ) -> Tuple[Optional[float], Dict[str, fl.common.Scalar]]:
         """Aggregate validation results."""
@@ -32,7 +33,7 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
             return None, {}
 
         # Extract accuracy from results
-        accuracies = [accuracy for client, accuracy in results]
+        accuracies = [evaluate_res.metrics["accuracy"] for _, evaluate_res in results]
         average_accuracy = np.mean(accuracies)
 
         # Return the average accuracy and no other metrics
@@ -40,11 +41,21 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
 
 # Initialize and start the Flower server with the custom strategy
 def main():
-    # Initialize strategy with the minimum number of clients set to 3
     strategy = FedAvgStrategy(min_available_clients=3)
-    
-    # Start server and listen for client connections to coordinate training and validation
-    fl.server.start_server(server_address="0.0.0.0:8080", config={"num_rounds": 10}, strategy=strategy)
+
+    # Define SSL credentials
+    root_certificate = Path("tls_certs/ca.crt").read_bytes()
+    server_certificate = Path("tls_certs/server.crt").read_bytes()
+    server_key = Path("tls_certs/server.key").read_bytes()
+
+    # Start server with gRPC configuration for large messages and SSL/TLS
+    fl.server.start_server(
+        server_address="0.0.0.0:8080",
+        strategy=strategy,
+        config=fl.server.ServerConfig(num_rounds=10),
+        grpc_max_message_length=1024**3,
+        certificates=(root_certificate, server_certificate, server_key)
+    )
 
 if __name__ == "__main__":
     main()
