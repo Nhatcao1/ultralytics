@@ -43,5 +43,3 @@ echo "Root CA: $CA_CERT"
 echo "Server Key: $SERVER_KEY"
 echo "Server Certificate: $SERVER_CERT"
 echo "====================================="
-
-#scp ./tls_certs/ca.crt root@worker1:/etc/pki/tls/certs/

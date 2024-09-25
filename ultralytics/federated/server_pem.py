@@ -18,8 +18,6 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         # Aggregate parameters
         parameters = [fit_res.parameters for _, fit_res in results]
         new_parameters = np.mean(parameters, axis=0)  # Simple average of the parameters
-
-        # Return the new parameters and no metrics
         return new_parameters, {}
 
     def aggregate_evaluate(
@@ -31,12 +29,10 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         """Aggregate validation results."""
         if not results:
             return None, {}
-
+        
         # Extract accuracy from results
         accuracies = [evaluate_res.metrics["accuracy"] for _, evaluate_res in results]
         average_accuracy = np.mean(accuracies)
-
-        # Return the average accuracy and no other metrics
         return average_accuracy, {}
 
 # Initialize and start the Flower server with the custom strategy
